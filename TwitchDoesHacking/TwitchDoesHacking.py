@@ -56,7 +56,7 @@ def initSSH():
     """
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    ssh.connect(cfg.IP,username=cfg.sshUSER,password=cfg.sshPASS)
+    ssh.connect(keys.IP,username=keys.sshUSER,password=keys.sshPASS)
 
 
 
