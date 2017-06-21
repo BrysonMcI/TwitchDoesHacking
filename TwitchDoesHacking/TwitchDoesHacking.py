@@ -1,5 +1,6 @@
 import cfg
 import keys
+import paramiko
 import socket
 import re
 from time import sleep
@@ -47,6 +48,17 @@ def initTwitch():
     s.send("JOIN {}\r\n".format(cfg.CHAN).encode("utf-8"))
     s.send("CAP REQ {}\r\n".format(cfg.CHAN).encode("utf-8"))
     return s
+
+
+def initSSH():
+    """
+    Initialize ssh connection to box
+    """
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    ssh.connect(cfg.IP,username=cfg.sshUSER,password=cfg.sshPASS)
+
+
 
 def startServ():
     """
