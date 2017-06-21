@@ -5,7 +5,11 @@ import socket
 import re
 from time import sleep
 from collections import Counter
+import multiprocessing
 
+"""
+Twitch Code
+"""
 def chat(sock, msg):
     """
     Send a chat message to the server.
@@ -40,7 +44,7 @@ def slowOn(sock, time=int(cfg.SLOW)):
     """
     chat(sock, "/slow {}".format(time))
 
-def initTwitch():
+def initTwitch(counterFlag, countMap):
     """
     Initialize connection to twitch
     """
@@ -50,20 +54,13 @@ def initTwitch():
     s.send("NICK {}\r\n".format(cfg.NICK).encode("utf-8"))
     s.send("JOIN {}\r\n".format(cfg.CHAN).encode("utf-8"))
     slowOn(s)
-    return s
+    twitchLoop(s, counterFlag, countMap)
 
-def initSSH():
-    """
-    Initialize ssh connection to box
-    """
-    ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    ssh.connect(keys.IP,username=keys.sshUSER,password=keys.sshPASS)
-
-def twitchLoop(s, countMap):
+def twitchLoop(s, counterFlag, countMap):
     """
     Handles reading and banning on the server
     """
+    
     while True:
         response = s.recv(1024).decode("utf-8")
         if response == "PING :tmi.twitch.tv\r\n":
@@ -80,18 +77,42 @@ def twitchLoop(s, countMap):
                     timeout(s, username)
                     break
             if username != cfg.NICK and username != "" and username != "tmi": #Check if we or server sent
+                counterFlag.acquire()
                 countMap.update([message.strip() + '\n'])
+                counterFlag.release()
         # Dont break the rules and post too fast
         sleep(1 / cfg.RATE) 
 
+"""
+SSH Code
+"""
+def initSSH(counterFlag, countMap):
+    """
+    Initialize ssh connection to box
+    """
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    ssh.connect(keys.IP,username=keys.sshUSER,password=keys.sshPASS)
+
+"""
+Bot Server Thing Init
+"""
 def startServ():
     """
     Connect to server and the server logic loop
     """
+    counterFlag = multiprocessing.Lock()
     countMap = Counter()
-    s = initTwitch()
-    twitchLoop(s, countMap)
+
+    twitchProc = multiprocessing.Process(target=initTwitch, args=(counterFlag, countMap))
+    sshProc = multiprocessing.Process(target=initSSH, args=(counterFlag, countMap))
+
+    twitchProc.start()
+    sshProc.start()
+
+    twitchProc.join()
+    sshProc.join()
     
 #If run as main
-if __name__ == "__main__":
+if __name__ == "__main__":  
     startServ()
