@@ -5,8 +5,6 @@ import re
 from time import sleep
 from collections import Counter
 
-# network functions go here
-
 def chat(sock, msg):
     """
     Send a chat message to the server.
