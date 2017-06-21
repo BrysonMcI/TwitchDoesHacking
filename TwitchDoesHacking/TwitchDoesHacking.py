@@ -3,6 +3,7 @@ import keys
 import socket
 import re
 from time import sleep
+from collections import Counter
 
 # network functions go here
 
@@ -13,7 +14,7 @@ def chat(sock, msg):
     sock -- the socket over which to send the message
     msg  -- the message to be sent
     """
-    sock.send("PRIVMSG #{} :{}".format(cfg.CHAN, msg))
+    sock.send(("PRIVMSG {} :{}\r\n").format(cfg.CHAN, msg).encode("utf-8"))
 
 def ban(sock, user):
     """
@@ -22,7 +23,7 @@ def ban(sock, user):
     sock -- the socket over which to send the ban command
     user -- the user to be banned
     """
-    chat(sock, ".ban {}".format(user))
+    chat(sock, "/ban {}".format(user))
 
 def timeout(sock, user, secs=600):
     """
@@ -32,9 +33,13 @@ def timeout(sock, user, secs=600):
     user -- the user to be timed out
     secs -- the length of the timeout in seconds (default 600)
     """
-    chat(sock, ".timeout {}".format(user, secs))
+    chat(sock, "/timeout {} {}".format(user, secs))
 
-
+def slowOn(sock, time=int(cfg.SLOW)):
+    """
+    Enable slow mode
+    """
+    chat(sock, "/slow {}".format(time))
 
 def initTwitch():
     """
@@ -45,16 +50,13 @@ def initTwitch():
     s.send("PASS {}\r\n".format(keys.PASS).encode("utf-8"))
     s.send("NICK {}\r\n".format(cfg.NICK).encode("utf-8"))
     s.send("JOIN {}\r\n".format(cfg.CHAN).encode("utf-8"))
-    s.send("CAP REQ {}\r\n".format(cfg.CHAN).encode("utf-8"))
+    slowOn(s)
     return s
 
-def startServ():
+def twitchLoop(s, countMap):
     """
-    Connect to server and the server logic loop
+    Handles reading and banning on the server
     """
-    s = initTwitch()
-    countMap = Counter()
-
     while True:
         response = s.recv(1024).decode("utf-8")
         if response == "PING :tmi.twitch.tv\r\n":
@@ -66,13 +68,23 @@ def startServ():
             username = re.search(r"\w+", response).group(0) # return the entire match
             message = cfg.CHAT_MSG.sub("", response)
             print(username + ": " + message)
-            for pattern in cfg.PATT:
+            for pattern in cfg.PATT: #Ban if they type something in pat
                 if re.match(pattern, message):
-                    ban(s, username)
+                    timeout(s, username)
                     break
-            countMap.update(message)
-        sleep(1 / cfg.RATE) # Dont break the rules and post too fast
+            if username != cfg.NICK and username != "" and username != "tmi": #Check if we or server sent
+                countMap.update([message.strip() + '\n'])
+        # Dont break the rules and post too fast
+        sleep(1 / cfg.RATE) 
 
+def startServ():
+    """
+    Connect to server and the server logic loop
+    """
+    countMap = Counter()
+    s = initTwitch()
+    twitchLoop(s, countMap)
+    
 #If run as main
 if __name__ == "__main__":
     startServ()
