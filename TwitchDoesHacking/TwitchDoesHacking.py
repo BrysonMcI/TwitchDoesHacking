@@ -4,7 +4,6 @@ import paramiko
 import socket
 import re
 from time import sleep
-from collections import Counter
 import multiprocessing
 
 """
@@ -78,7 +77,12 @@ def twitchLoop(s, counterFlag, countMap):
                     break
             if username != cfg.NICK and username != "" and username != "tmi": #Check if we or server sent
                 counterFlag.acquire()
-                countMap.update([message.strip() + '\n'])
+                message = message.strip()
+                if message in countMap:
+                    countMap[message] += 1
+                else:
+                    countMap[message] = 1
+                print (countMap)
                 counterFlag.release()
         # Dont break the rules and post too fast
         sleep(1 / cfg.RATE) 
@@ -94,6 +98,24 @@ def initSSH(counterFlag, countMap):
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     ssh.connect(keys.IP,username=keys.sshUSER,password=keys.sshPASS)
 
+    while True:
+        sleep(10)
+        #print(countMap)
+        counterFlag.acquire()
+        try:
+
+            command = max(countMap.keys(), key = (lambda k: countMap[k]))
+            #print(command)
+            print("With "  + str(countMap[command]) + " votes\nExecuting: " + command) 
+            stdin,stdout,stderr = ssh.exec_command(command)
+            countMap.clear()
+        except:
+            print("\n\n\nNo commands input in last 10 seconds\n\n\n")
+           
+        counterFlag.release()
+        print(stdout.readlines())
+
+
 """
 Bot Server Thing Init
 """
@@ -101,8 +123,8 @@ def startServ():
     """
     Connect to server and the server logic loop
     """
-    counterFlag = multiprocessing.Lock()
-    countMap = Counter()
+    counterFlag = multiprocessing.Manager().Lock()
+    countMap = multiprocessing.Manager().dict()
 
     twitchProc = multiprocessing.Process(target=initTwitch, args=(counterFlag, countMap))
     sshProc = multiprocessing.Process(target=initSSH, args=(counterFlag, countMap))

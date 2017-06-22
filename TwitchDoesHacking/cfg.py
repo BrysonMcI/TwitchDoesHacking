@@ -9,7 +9,7 @@ PORT =  6667                                  # 443 = SSL, 6667 = normal
 NICK = "twitchdoeshacking"                    # your Twitch username, lowercase
 CHAN = "#twitchdoeshacking"                   # the channel you want to join
 
-SLOW = "10"                                   # Slow mode timer
+SLOW = "1"                                   # Slow mode timer
 
 CHAT_MSG=re.compile(r"^:\w+!\w+@\w+\.tmi\.twitch\.tv PRIVMSG #\w+ :")
 
