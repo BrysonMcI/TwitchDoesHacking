@@ -241,8 +241,3 @@ ModelManifest.xml
 # FAKE - F# Make
 .fake/
 /TwitchDoesHacking/keys.py
-
-# Misc.
-__pycache__/
-.idea/
-env/

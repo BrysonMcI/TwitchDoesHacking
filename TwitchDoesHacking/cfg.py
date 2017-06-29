@@ -17,8 +17,5 @@ RATE = (90/30) # messages per second
 
 PATT = [
     r"rm -rf",
-    r"reboot",
-    r"systemctl (suspend|restart|rescue|kexec|hibernate|hybrid-sleep|emergency)",
-    r"halt",
-    r"poweroff",
+    r"reboot"
 ]
