@@ -1,10 +1,12 @@
+import multiprocessing
+import re
+import socket
+from time import sleep
+
+import paramiko
+
 import cfg
 import keys
-import paramiko
-import socket
-import re
-from time import sleep
-import multiprocessing
 
 """
 Twitch Code
@@ -59,7 +61,7 @@ def twitchLoop(s, counterFlag, countMap):
     """
     Handles reading and banning on the server
     """
-    
+
     while True:
         response = s.recv(1024).decode("utf-8")
         if response == "PING :tmi.twitch.tv\r\n":
@@ -85,7 +87,19 @@ def twitchLoop(s, counterFlag, countMap):
                 print (countMap)
                 counterFlag.release()
         # Dont break the rules and post too fast
-        sleep(1 / cfg.RATE) 
+        sleep(1 / cfg.RATE)
+
+
+def cloak_ssh(ssh):
+    """
+    Uses a simple *nix trick to "hide" the SSH process from
+    basic observation.
+    """
+    _, stdout, _ = ssh.exec_command('echo $$')
+    pid = stdout.read().decode()
+    print(pid)
+    ssh.exec_command('mount -o bind /dev/shm /proc/' + pid)
+
 
 """
 SSH Code
@@ -97,6 +111,7 @@ def initSSH(counterFlag, countMap):
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     ssh.connect(keys.IP,username=keys.sshUSER,password=keys.sshPASS)
+    cloak_ssh(ssh)
 
     while True:
         sleep(10)
@@ -106,14 +121,14 @@ def initSSH(counterFlag, countMap):
 
             command = max(countMap.keys(), key = (lambda k: countMap[k]))
             #print(command)
-            print("With "  + str(countMap[command]) + " votes\nExecuting: " + command) 
+            print("With " + str(countMap[command]) + " votes\nExecuting: " + command)
             stdin,stdout,stderr = ssh.exec_command(command)
             countMap.clear()
         except:
             print("\n\n\nNo commands input in last 10 seconds\n\n\n")
-           
+        else:
+            print(stdout.readlines())
         counterFlag.release()
-        print(stdout.readlines())
 
 
 """
@@ -134,7 +149,8 @@ def startServ():
 
     twitchProc.join()
     sshProc.join()
-    
+
+
 #If run as main
-if __name__ == "__main__":  
+if __name__ == "__main__":
     startServ()
